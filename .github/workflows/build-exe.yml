@@ -1,0 +1,55 @@
+name: Build CleanRemoto.exe
+
+# Compila o programa em UM UNICO arquivo (CleanRemoto.exe) num runner Windows
+# e publica numa Release, para o site baixar o arquivo unico (estilo AnyDesk).
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "cleanremoto.py"
+      - "requirements.txt"
+      - ".github/workflows/build-exe.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Gerar o executavel unico
+        run: >
+          pyinstaller --noconfirm --onefile --windowed --name CleanRemoto
+          --collect-all pynput --collect-all mss cleanremoto.py
+
+      - name: Publicar como artefato do build
+        uses: actions/upload-artifact@v4
+        with:
+          name: CleanRemoto-exe
+          path: dist/CleanRemoto.exe
+
+      - name: Publicar na Release "app" (download estavel para o site)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: app
+          name: Clean Remoto (ultima versao)
+          body: |
+            Arquivo unico **CleanRemoto.exe** — baixe, de dois cliques e pronto.
+            Nao precisa instalar Python. Atualizado automaticamente a cada build.
+          files: dist/CleanRemoto.exe
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

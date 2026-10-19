@@ -3,26 +3,25 @@
 """
 Clean Remoto - acesso a area de trabalho remota.
 
-Um unico programa que funciona de dois jeitos:
+UM UNICO programa (como AnyDesk / TeamViewer). Ao abrir, uma janela so ja
+mostra as duas coisas:
 
-  * PERMITIR ACESSO (host)  -> compartilha a tela deste computador e deixa
-                               outra pessoa controlar mouse e teclado.
-  * ACESSAR OUTRO (viewer)  -> conecta no computador que permitiu acesso e
-                               o controla.
+  * ESTE COMPUTADOR  -> seu endereco (IP) e senha. Deixe aberto para que
+                        outra pessoa consiga acessar este computador.
+  * ACESSAR OUTRO    -> digite o IP e a senha de outro computador e conecte.
 
-Projetado para ser usado SOBRE a VPN do kit "acesso externo" (Tailscale /
-WireGuard): os dois computadores ja se enxergam pelo IP da VPN, entao nao
-precisa abrir porta no roteador nem de servidor intermediario.
+Feito para rodar SOBRE a VPN do kit "acesso externo" (Tailscale / WireGuard):
+os dois computadores ja se enxergam pelo IP da VPN, entao nao precisa abrir
+porta no roteador nem de servidor intermediario. Em rede local tambem funciona.
 
-Principios de seguranca (acesso consentido e visivel):
-  * O host so aceita a conexao com a SENHA que ele mesmo mostra na tela.
-  * A senha nunca trafega em texto puro: usa desafio/resposta com HMAC.
-  * Enquanto alguem esta conectado, o host mostra uma janela bem visivel
-    com o botao "ENCERRAR SESSAO" sempre a mao.
+Seguranca (acesso consentido e visivel):
+  * So aceita conexao com a SENHA mostrada na tela.
+  * A senha nunca trafega em texto puro: desafio/resposta com HMAC-SHA256.
+  * Enquanto alguem esta conectado, aparece o status e o botao ENCERRAR SESSAO.
   * Nada de instalacao escondida, servico furtivo ou operacao invisivel.
 
-Requisitos: Python 3.9+ e os pacotes de requirements.txt
-  (pip install -r requirements.txt)
+Requisitos (so para rodar pelo codigo): Python 3.9+ e os pacotes de
+requirements.txt. O executavel unico (CleanRemoto.exe) ja vem com tudo.
 """
 
 import argparse
@@ -30,12 +29,10 @@ import hashlib
 import hmac
 import io
 import json
-import os
 import queue
 import secrets
 import socket
 import struct
-import sys
 import threading
 import time
 
@@ -171,9 +168,6 @@ class CapturadorTela:
 class ControleEntrada:
     """Injeta eventos de mouse e teclado no computador host (via pynput)."""
 
-    _BOTOES = {}
-    _ESPECIAIS = {}
-
     def __init__(self):
         self.mouse = _pynput_mouse.Controller()
         self.teclado = _pynput_keyboard.Controller()
@@ -229,7 +223,8 @@ class ServidorHost:
     """Aceita UMA conexao por vez e serve tela + entrada."""
 
     def __init__(self, senha, porta=PORT_PADRAO, fps=12, qualidade=55,
-                 ao_conectar=None, ao_desconectar=None, ao_log=None):
+                 ao_conectar=None, ao_desconectar=None, ao_log=None,
+                 ao_clipboard=None):
         self.senha = senha
         self.porta = porta
         self.intervalo = 1.0 / max(1, fps)
@@ -237,6 +232,7 @@ class ServidorHost:
         self.ao_conectar = ao_conectar or (lambda nome, ip: None)
         self.ao_desconectar = ao_desconectar or (lambda: None)
         self.ao_log = ao_log or (lambda m: None)
+        self.ao_clipboard = ao_clipboard or (lambda texto: None)
         self._parar = threading.Event()
         self._cliente = None
         self._srv = None
@@ -352,22 +348,13 @@ class ServidorHost:
                     except Exception:
                         pass
                 elif tipo == MSG_CLIP:
-                    self._definir_clipboard(dados.decode("utf-8", "ignore"))
+                    try:
+                        self.ao_clipboard(dados.decode("utf-8", "ignore"))
+                    except Exception:
+                        pass
                 elif tipo == MSG_PING:
                     pass
         except (ConnectionError, OSError):
-            pass
-
-    @staticmethod
-    def _definir_clipboard(texto):
-        try:
-            r = tk.Tk()
-            r.withdraw()
-            r.clipboard_clear()
-            r.clipboard_append(texto)
-            r.update()
-            r.destroy()
-        except Exception:
             pass
 
 
@@ -375,7 +362,13 @@ class ServidorHost:
 # LADO VIEWER  -  mostra a tela do host e envia mouse/teclado
 # ===========================================================================
 class JanelaViewer:
-    def __init__(self, host, porta, senha, nome="Clean Remoto"):
+    """Janela que exibe e controla o computador remoto.
+
+    master=None  -> cria a propria janela principal (uso por linha de comando).
+    master=root  -> abre como janela secundaria (Toplevel) do programa unico.
+    """
+
+    def __init__(self, host, porta, senha, nome="Clean Remoto", master=None):
         self.host = host
         self.porta = porta
         self.senha = senha
@@ -387,21 +380,20 @@ class JanelaViewer:
         self._parar = threading.Event()
         self._img_tk = None
         self._mods = set()  # modificadores pressionados (ctrl/alt)
+        self._standalone = master is None
 
-        self.root = tk.Tk()
-        self.root.title("Clean Remoto - conectando a %s..." % host)
-        self.root.configure(bg="#111")
-        self.root.geometry("1100x700")
-        self.canvas = tk.Canvas(self.root, bg="#111", highlightthickness=0,
+        self.win = tk.Tk() if master is None else tk.Toplevel(master)
+        self.win.title("Clean Remoto - conectando a %s..." % host)
+        self.win.configure(bg="#111")
+        self.win.geometry("1100x700")
+        self.canvas = tk.Canvas(self.win, bg="#111", highlightthickness=0,
                                 cursor="arrow")
         self.canvas.pack(fill="both", expand=True)
         self._item = self.canvas.create_image(0, 0, anchor="nw")
-
-        # area desenhada (para mapear coordenadas) : x0,y0,larg,alt
-        self._area = (0, 0, 1, 1)
+        self._area = (0, 0, 1, 1)  # x0,y0,larg,alt da imagem desenhada
 
         self._ligar_eventos()
-        self.root.protocol("WM_DELETE_WINDOW", self.fechar)
+        self.win.protocol("WM_DELETE_WINDOW", self.fechar)
 
     # -- conexao -----------------------------------------------------------
     def conectar(self):
@@ -425,11 +417,13 @@ class JanelaViewer:
             self.alt_remota = info["altura"]
         except Exception as e:
             messagebox.showerror("Clean Remoto", "Nao foi possivel conectar:\n%s" % e)
+            self.fechar()
             return False
-        self.root.title("Clean Remoto - %s (%dx%d)" %
-                        (self.host, self.larg_remota, self.alt_remota))
+        self.win.title("Clean Remoto - %s (%dx%d)" %
+                       (self.host, self.larg_remota, self.alt_remota))
         threading.Thread(target=self._loop_receber, daemon=True).start()
-        self.root.after(30, self._atualizar_tela)
+        self.win.after(30, self._atualizar_tela)
+        self.canvas.focus_set()
         return True
 
     def _loop_receber(self):
@@ -455,16 +449,15 @@ class JanelaViewer:
         finally:
             self._parar.set()
             try:
-                self.root.after(0, lambda: self.root.title(
-                    "Clean Remoto - DESCONECTADO"))
+                self.win.after(0, lambda: self.win.title("Clean Remoto - DESCONECTADO"))
             except Exception:
                 pass
 
     def _atualizar_tela(self):
         if self._parar.is_set():
             return
+        img = None
         try:
-            img = None
             while True:  # pega o quadro mais recente
                 img = self._fila.get_nowait()
         except queue.Empty:
@@ -480,7 +473,7 @@ class JanelaViewer:
             self._img_tk = ImageTk.PhotoImage(vis)
             self.canvas.itemconfig(self._item, image=self._img_tk)
             self.canvas.coords(self._item, x0, y0)
-        self.root.after(30, self._atualizar_tela)
+        self.win.after(30, self._atualizar_tela)
 
     # -- mapeamento de coordenadas ----------------------------------------
     def _para_remoto(self, ex, ey):
@@ -514,8 +507,8 @@ class JanelaViewer:
         c.bind("<MouseWheel>", self._scroll)            # Windows / macOS
         c.bind("<Button-4>", lambda e: self._scroll_xy(e, 0, 1))   # Linux
         c.bind("<Button-5>", lambda e: self._scroll_xy(e, 0, -1))  # Linux
-        self.root.bind("<KeyPress>", self._key_press)
-        self.root.bind("<KeyRelease>", self._key_release)
+        self.win.bind("<KeyPress>", self._key_press)
+        self.win.bind("<KeyRelease>", self._key_release)
         c.focus_set()
 
     def _mouse_move(self, e):
@@ -549,7 +542,7 @@ class JanelaViewer:
             self._enviar({"t": "kup", "key": ks, "char": e.char})
             return
         # caractere imprimivel normal -> digita (resolve shift, acentos, simbolos)
-        if e.char and e.char.isprintable() and e.char != "":
+        if e.char and e.char.isprintable():
             self._enviar({"t": "type", "text": e.char})
             return
         # teclas especiais (setas, F1-F12, Enter, Backspace, Delete...)
@@ -566,12 +559,12 @@ class JanelaViewer:
     def _receber_clip(self, texto):
         def aplicar():
             try:
-                self.root.clipboard_clear()
-                self.root.clipboard_append(texto)
+                self.win.clipboard_clear()
+                self.win.clipboard_append(texto)
             except Exception:
                 pass
         try:
-            self.root.after(0, aplicar)
+            self.win.after(0, aplicar)
         except Exception:
             pass
 
@@ -584,171 +577,186 @@ class JanelaViewer:
         except Exception:
             pass
         try:
-            self.root.destroy()
+            self.win.destroy()
         except Exception:
             pass
 
+    def abrir(self):
+        """Conecta usando o mainloop ja existente (janela secundaria)."""
+        self.conectar()
+
     def rodar(self):
+        """Conecta e roda o proprio mainloop (uso por linha de comando)."""
         if self.conectar():
-            self.root.mainloop()
+            self.win.mainloop()
 
 
 # ===========================================================================
-# JANELA DO HOST  -  indicador visivel de consentimento
+# JANELA PRINCIPAL  -  tudo em um so lugar (estilo AnyDesk)
 # ===========================================================================
-class JanelaHost:
+BG = "#0f1b2d"; CARD = "#16263d"; AZUL = "#5db0ff"; VERDE = "#9fffa6"
+MUTED = "#9fc0e8"
+
+
+class JanelaPrincipal:
     def __init__(self, senha=None, porta=PORT_PADRAO):
-        self.senha = senha or ("%06d" % secrets.randbelow(1000000))
         self.porta = porta
+        self.servidor = None
         self.root = tk.Tk()
-        self.root.title("Clean Remoto - permitindo acesso a este computador")
-        self.root.configure(bg="#0f1b2d")
-        self.root.geometry("560x520")
-        self.root.attributes("-topmost", True)
+        self.root.title("Clean Remoto")
+        self.root.configure(bg=BG)
+        self.root.geometry("520x620")
+        self.root.minsize(480, 560)
 
-        tk.Label(self.root, text="CLEAN REMOTO", bg="#0f1b2d", fg="#5db0ff",
-                 font=("Segoe UI", 20, "bold")).pack(pady=(18, 2))
-        tk.Label(self.root, text="Este computador esta pronto para ser acessado",
-                 bg="#0f1b2d", fg="#cfe3ff", font=("Segoe UI", 11)).pack()
+        tk.Label(self.root, text="CLEAN REMOTO", bg=BG, fg=AZUL,
+                 font=("Segoe UI", 20, "bold")).pack(pady=(16, 0))
+        tk.Label(self.root, text="Acesso a area de trabalho remota", bg=BG,
+                 fg=MUTED, font=("Segoe UI", 10)).pack(pady=(0, 10))
 
-        quadro = tk.Frame(self.root, bg="#16263d")
-        quadro.pack(fill="x", padx=20, pady=16)
-        tk.Label(quadro, text="Informe estes dados a quem vai acessar:",
-                 bg="#16263d", fg="#9fc0e8", font=("Segoe UI", 10)).pack(
-                     anchor="w", padx=14, pady=(12, 4))
+        # ---- ESTE COMPUTADOR (host) -------------------------------------
+        card1 = tk.Frame(self.root, bg=CARD)
+        card1.pack(fill="x", padx=16, pady=6)
+        tk.Label(card1, text="ESTE COMPUTADOR", bg=CARD, fg=VERDE,
+                 font=("Segoe UI", 11, "bold")).pack(anchor="w", padx=14, pady=(12, 0))
+        tk.Label(card1, text="Deixe aberto para que possam acessar este computador.",
+                 bg=CARD, fg=MUTED, font=("Segoe UI", 9)).pack(anchor="w", padx=14)
 
+        tk.Label(card1, text="Endereco (IP):", bg=CARD, fg=MUTED,
+                 font=("Segoe UI", 9)).pack(anchor="w", padx=14, pady=(8, 0))
         ips = ips_locais() or ["(descubra o IP desta maquina)"]
-        tk.Label(quadro, text="Endereco (IP):", bg="#16263d", fg="#9fc0e8",
-                 font=("Segoe UI", 10)).pack(anchor="w", padx=14)
-        self.lbl_ip = tk.Label(quadro, text="   " + "\n   ".join(ips),
-                                bg="#16263d", fg="#ffffff",
-                                font=("Consolas", 13, "bold"), justify="left")
-        self.lbl_ip.pack(anchor="w", padx=14, pady=(0, 8))
+        self.lbl_ip = tk.Label(card1, text="   " + "\n   ".join(ips), bg=CARD,
+                               fg="#ffffff", justify="left",
+                               font=("Consolas", 12, "bold"))
+        self.lbl_ip.pack(anchor="w", padx=14)
 
-        tk.Label(quadro, text="Senha de acesso:", bg="#16263d", fg="#9fc0e8",
-                 font=("Segoe UI", 10)).pack(anchor="w", padx=14)
-        tk.Label(quadro, text="   " + self.senha, bg="#16263d", fg="#9fffa6",
-                 font=("Consolas", 22, "bold")).pack(anchor="w", padx=14, pady=(0, 8))
-        tk.Label(quadro, text="Porta: %d" % self.porta, bg="#16263d",
-                 fg="#9fc0e8", font=("Segoe UI", 9)).pack(anchor="w", padx=14,
-                                                          pady=(0, 12))
+        linha = tk.Frame(card1, bg=CARD)
+        linha.pack(fill="x", padx=14, pady=(8, 0))
+        tk.Label(linha, text="Senha:", bg=CARD, fg=MUTED,
+                 font=("Segoe UI", 9)).grid(row=0, column=0, sticky="w")
+        self.e_senha_host = tk.Entry(linha, font=("Consolas", 16, "bold"), width=10,
+                                     justify="center", fg="#0f1b2d")
+        self.e_senha_host.grid(row=0, column=1, padx=6)
+        self.e_senha_host.insert(0, senha or self._gerar_senha())
+        tk.Button(linha, text="Gerar nova", command=self._nova_senha,
+                  bg="#1e5f8f", fg="white", relief="flat",
+                  font=("Segoe UI", 9, "bold")).grid(row=0, column=2, padx=3)
+        tk.Label(linha, text="Porta:", bg=CARD, fg=MUTED,
+                 font=("Segoe UI", 9)).grid(row=0, column=3, sticky="e", padx=(8, 0))
+        self.e_porta_host = tk.Entry(linha, font=("Consolas", 11), width=6,
+                                     justify="center", fg="#0f1b2d")
+        self.e_porta_host.grid(row=0, column=4, padx=4)
+        self.e_porta_host.insert(0, str(porta))
+        tk.Button(linha, text="Aplicar", command=self._iniciar_servidor,
+                  bg="#1e6f3f", fg="white", relief="flat",
+                  font=("Segoe UI", 9, "bold")).grid(row=0, column=5, padx=3)
 
-        self.lbl_status = tk.Label(self.root, text="Aguardando conexao...",
-                                   bg="#0f1b2d", fg="#ffd27f",
-                                   font=("Segoe UI", 12, "bold"))
-        self.lbl_status.pack(pady=6)
-
-        self.btn_encerrar = tk.Button(self.root, text="ENCERRAR SESSAO",
+        self.lbl_status = tk.Label(card1, text="Iniciando...", bg=CARD,
+                                   fg="#ffd27f", font=("Segoe UI", 11, "bold"))
+        self.lbl_status.pack(anchor="w", padx=14, pady=(10, 0))
+        self.btn_encerrar = tk.Button(card1, text="ENCERRAR SESSAO",
                                       command=self._encerrar, state="disabled",
-                                      bg="#c0392b", fg="white",
-                                      font=("Segoe UI", 12, "bold"),
-                                      activebackground="#e74c3c", relief="flat",
-                                      padx=18, pady=8)
-        self.btn_encerrar.pack(pady=6)
+                                      bg="#c0392b", fg="white", relief="flat",
+                                      font=("Segoe UI", 10, "bold"))
+        self.btn_encerrar.pack(anchor="w", padx=14, pady=(6, 12))
 
-        self.log = scrolledtext.ScrolledText(self.root, height=7, bg="#0a1420",
-                                             fg="#8fb6e0", font=("Consolas", 9),
+        # ---- ACESSAR OUTRO (viewer) -------------------------------------
+        card2 = tk.Frame(self.root, bg=CARD)
+        card2.pack(fill="x", padx=16, pady=6)
+        tk.Label(card2, text="ACESSAR OUTRO COMPUTADOR", bg=CARD, fg=AZUL,
+                 font=("Segoe UI", 11, "bold")).pack(anchor="w", padx=14, pady=(12, 0))
+        g = tk.Frame(card2, bg=CARD)
+        g.pack(fill="x", padx=14, pady=(6, 12))
+        tk.Label(g, text="IP:", bg=CARD, fg=MUTED).grid(row=0, column=0, sticky="e", pady=3)
+        self.e_ip = tk.Entry(g, font=("Consolas", 12), width=20)
+        self.e_ip.grid(row=0, column=1, padx=6, pady=3, sticky="w")
+        tk.Label(g, text="Senha:", bg=CARD, fg=MUTED).grid(row=1, column=0, sticky="e", pady=3)
+        self.e_senha = tk.Entry(g, font=("Consolas", 12), width=20)
+        self.e_senha.grid(row=1, column=1, padx=6, pady=3, sticky="w")
+        tk.Label(g, text="Porta:", bg=CARD, fg=MUTED).grid(row=2, column=0, sticky="e", pady=3)
+        self.e_porta = tk.Entry(g, font=("Consolas", 12), width=20)
+        self.e_porta.insert(0, str(PORT_PADRAO))
+        self.e_porta.grid(row=2, column=1, padx=6, pady=3, sticky="w")
+        self.btn_conectar = tk.Button(g, text="CONECTAR", command=self._conectar,
+                                      bg="#1e6f3f", fg="white", relief="flat",
+                                      font=("Segoe UI", 11, "bold"), padx=16, pady=4)
+        self.btn_conectar.grid(row=3, column=0, columnspan=2, pady=(8, 0))
+        self.e_ip.bind("<Return>", lambda e: self._conectar())
+        self.e_senha.bind("<Return>", lambda e: self._conectar())
+
+        # ---- log --------------------------------------------------------
+        self.log = scrolledtext.ScrolledText(self.root, height=5, bg="#0a1420",
+                                             fg="#8fb6e0", font=("Consolas", 8),
                                              relief="flat")
-        self.log.pack(fill="both", expand=True, padx=20, pady=(8, 16))
+        self.log.pack(fill="both", expand=True, padx=16, pady=(6, 14))
 
-        self.servidor = ServidorHost(
-            self.senha, self.porta,
-            ao_conectar=self._ao_conectar,
-            ao_desconectar=self._ao_desconectar,
-            ao_log=self._log)
         self.root.protocol("WM_DELETE_WINDOW", self._sair)
 
-    def _log(self, msg):
-        def escrever():
-            self.log.insert("end", time.strftime("[%H:%M:%S] ") + msg + "\n")
-            self.log.see("end")
+    # -- senha / servidor --------------------------------------------------
+    @staticmethod
+    def _gerar_senha():
+        return "%06d" % secrets.randbelow(1000000)
+
+    def _nova_senha(self):
+        self.e_senha_host.delete(0, "end")
+        self.e_senha_host.insert(0, self._gerar_senha())
+        self._iniciar_servidor()
+
+    def _iniciar_servidor(self):
+        if self.servidor:
+            self.servidor.parar()
+            self.servidor = None
+        senha = self.e_senha_host.get().strip() or self._gerar_senha()
+        self.e_senha_host.delete(0, "end")
+        self.e_senha_host.insert(0, senha)
         try:
-            self.root.after(0, escrever)
+            porta = int(self.e_porta_host.get().strip() or PORT_PADRAO)
+        except ValueError:
+            porta = PORT_PADRAO
+            self.e_porta_host.delete(0, "end")
+            self.e_porta_host.insert(0, str(porta))
+        self.servidor = ServidorHost(
+            senha, porta,
+            ao_conectar=self._ao_conectar, ao_desconectar=self._ao_desconectar,
+            ao_log=self._log, ao_clipboard=self._set_clip)
+        self.servidor.iniciar()
+        self.lbl_status.config(text="Aguardando conexao...", fg="#ffd27f")
+        self.btn_encerrar.config(state="disabled")
+
+    def _set_clip(self, texto):
+        def ap():
+            try:
+                self.root.clipboard_clear()
+                self.root.clipboard_append(texto)
+            except Exception:
+                pass
+        try:
+            self.root.after(0, ap)
         except Exception:
             pass
 
     def _ao_conectar(self, nome, ip):
         def ui():
-            self.lbl_status.config(text="CONECTADO: %s (%s)" % (nome, ip),
-                                   fg="#9fffa6")
+            self.lbl_status.config(text="CONECTADO: %s (%s)" % (nome, ip), fg=VERDE)
             self.btn_encerrar.config(state="normal")
-            self.root.attributes("-topmost", True)
+            try:
+                self.root.attributes("-topmost", True)
+                self.root.after(1500, lambda: self.root.attributes("-topmost", False))
+            except Exception:
+                pass
         self.root.after(0, ui)
 
     def _ao_desconectar(self):
-        def ui():
-            self.lbl_status.config(text="Aguardando conexao...", fg="#ffd27f")
-            self.btn_encerrar.config(state="disabled")
-        self.root.after(0, ui)
+        self.root.after(0, lambda: (
+            self.lbl_status.config(text="Aguardando conexao...", fg="#ffd27f"),
+            self.btn_encerrar.config(state="disabled")))
 
     def _encerrar(self):
-        self.servidor.encerrar_sessao()
-        self._log("Sessao encerrada pelo usuario deste computador.")
+        if self.servidor:
+            self.servidor.encerrar_sessao()
+        self._log("Sessao encerrada por voce.")
 
-    def _sair(self):
-        if messagebox.askyesno("Clean Remoto",
-                               "Parar de permitir acesso e fechar?"):
-            self.servidor.parar()
-            self.root.destroy()
-
-    def rodar(self):
-        self.servidor.iniciar()
-        self.root.mainloop()
-
-
-# ===========================================================================
-# MENU INICIAL  -  escolhe entre host e viewer
-# ===========================================================================
-class MenuInicial:
-    def __init__(self):
-        self.root = tk.Tk()
-        self.root.title("Clean Remoto")
-        self.root.configure(bg="#0f1b2d")
-        self.root.geometry("460x440")
-
-        tk.Label(self.root, text="CLEAN REMOTO", bg="#0f1b2d", fg="#5db0ff",
-                 font=("Segoe UI", 22, "bold")).pack(pady=(26, 2))
-        tk.Label(self.root, text="Acesso a area de trabalho remota",
-                 bg="#0f1b2d", fg="#cfe3ff", font=("Segoe UI", 11)).pack(pady=(0, 20))
-
-        tk.Button(self.root, text="PERMITIR QUE ME ACESSEM\n(compartilhar este computador)",
-                  command=self._abrir_host, bg="#1e6f3f", fg="white",
-                  font=("Segoe UI", 12, "bold"), activebackground="#2ecc71",
-                  relief="flat", padx=10, pady=14, width=34).pack(pady=8)
-
-        tk.Label(self.root, text="— ou —", bg="#0f1b2d", fg="#5a7290",
-                 font=("Segoe UI", 10)).pack(pady=4)
-
-        quadro = tk.Frame(self.root, bg="#16263d")
-        quadro.pack(fill="x", padx=24, pady=6)
-        tk.Label(quadro, text="Acessar outro computador", bg="#16263d",
-                 fg="#cfe3ff", font=("Segoe UI", 11, "bold")).grid(
-                     row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 6))
-        tk.Label(quadro, text="IP:", bg="#16263d", fg="#9fc0e8").grid(
-            row=1, column=0, sticky="e", padx=(10, 4), pady=3)
-        self.e_ip = tk.Entry(quadro, font=("Consolas", 11), width=22)
-        self.e_ip.grid(row=1, column=1, sticky="w", pady=3)
-        tk.Label(quadro, text="Senha:", bg="#16263d", fg="#9fc0e8").grid(
-            row=2, column=0, sticky="e", padx=(10, 4), pady=3)
-        self.e_senha = tk.Entry(quadro, font=("Consolas", 11), width=22)
-        self.e_senha.grid(row=2, column=1, sticky="w", pady=3)
-        tk.Label(quadro, text="Porta:", bg="#16263d", fg="#9fc0e8").grid(
-            row=3, column=0, sticky="e", padx=(10, 4), pady=3)
-        self.e_porta = tk.Entry(quadro, font=("Consolas", 11), width=22)
-        self.e_porta.insert(0, str(PORT_PADRAO))
-        self.e_porta.grid(row=3, column=1, sticky="w", pady=3)
-        tk.Button(quadro, text="CONECTAR", command=self._abrir_viewer,
-                  bg="#1e5f8f", fg="white", font=("Segoe UI", 11, "bold"),
-                  activebackground="#3498db", relief="flat", padx=10, pady=6).grid(
-                      row=4, column=0, columnspan=2, pady=12)
-
-    def _abrir_host(self):
-        if not _avisar_dependencias(precisa_entrada=True):
-            return
-        self.root.destroy()
-        JanelaHost().rodar()
-
-    def _abrir_viewer(self):
+    # -- viewer ------------------------------------------------------------
+    def _conectar(self):
         if not _avisar_dependencias(precisa_entrada=False):
             return
         ip = self.e_ip.get().strip()
@@ -761,17 +769,35 @@ class MenuInicial:
         except ValueError:
             messagebox.showwarning("Clean Remoto", "Porta invalida.")
             return
-        self.root.destroy()
-        JanelaViewer(ip, porta, senha).rodar()
+        self._log("Conectando a %s:%d..." % (ip, porta))
+        JanelaViewer(ip, porta, senha, master=self.root).abrir()
+
+    # -- utilitarios -------------------------------------------------------
+    def _log(self, msg):
+        def escrever():
+            self.log.insert("end", time.strftime("[%H:%M:%S] ") + msg + "\n")
+            self.log.see("end")
+        try:
+            self.root.after(0, escrever)
+        except Exception:
+            pass
+
+    def _sair(self):
+        if messagebox.askyesno("Clean Remoto", "Fechar o Clean Remoto?"):
+            if self.servidor:
+                self.servidor.parar()
+            self.root.destroy()
 
     def rodar(self):
+        if not _avisar_dependencias(precisa_entrada=True):
+            self.lbl_status.config(text="Faltam componentes (veja o aviso).", fg="#ff8b8b")
+        else:
+            self._iniciar_servidor()
         self.root.mainloop()
 
 
 def _avisar_dependencias(precisa_entrada):
     faltando = list(_MISSING)
-    if mss is None and "pillow" not in faltando:
-        pass  # pillow cobre o fallback de captura
     if precisa_entrada and _pynput_mouse is None:
         faltando.append("pynput")
     if faltando:
@@ -780,7 +806,8 @@ def _avisar_dependencias(precisa_entrada):
                 "Clean Remoto",
                 "Faltam componentes. No Prompt de Comando rode:\n\n"
                 "pip install -r requirements.txt\n\n"
-                "Faltando: " + ", ".join(sorted(set(faltando))))
+                "Faltando: " + ", ".join(sorted(set(faltando))) +
+                "\n\n(O executavel CleanRemoto.exe ja vem com tudo incluido.)")
         except Exception:
             print("Faltam pacotes:", ", ".join(sorted(set(faltando))))
         return False
@@ -788,29 +815,29 @@ def _avisar_dependencias(precisa_entrada):
 
 
 # ===========================================================================
-# Linha de comando (opcional) + menu grafico
+# Linha de comando (opcional) + janela unica
 # ===========================================================================
 def main(argv=None):
     p = argparse.ArgumentParser(
         description="Clean Remoto - acesso a area de trabalho remota.")
     sub = p.add_subparsers(dest="modo")
 
-    ph = sub.add_parser("host", help="permitir que acessem este computador")
+    ph = sub.add_parser("host", help="abrir ja pronto para ser acessado")
     ph.add_argument("--senha", help="define a senha (padrao: gera uma)")
     ph.add_argument("--porta", type=int, default=PORT_PADRAO)
 
-    pv = sub.add_parser("viewer", help="acessar outro computador")
+    pv = sub.add_parser("viewer", help="acessar outro computador direto")
     pv.add_argument("ip")
     pv.add_argument("--senha", required=True)
     pv.add_argument("--porta", type=int, default=PORT_PADRAO)
 
     args = p.parse_args(argv)
-    if args.modo == "host":
-        JanelaHost(senha=args.senha, porta=args.porta).rodar()
-    elif args.modo == "viewer":
+    if args.modo == "viewer":
         JanelaViewer(args.ip, args.porta, args.senha).rodar()
+    elif args.modo == "host":
+        JanelaPrincipal(senha=args.senha, porta=args.porta).rodar()
     else:
-        MenuInicial().rodar()
+        JanelaPrincipal().rodar()
 
 
 if __name__ == "__main__":

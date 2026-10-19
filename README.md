@@ -1,179 +1,118 @@
 # Clean Remoto
 
-Programa de **acesso à área de trabalho remota** — no estilo do TeamViewer /
-AnyDesk, porém simples, aberto e feito para rodar **sobre a VPN** do kit
-[`acessoexterno`](https://github.com/midiasclean/acessoexterno) (Tailscale ou
-WireGuard).
+Programa de **acesso à área de trabalho remota** — um **único arquivo**, como
+AnyDesk ou TeamViewer. Abra o programa e, numa janela só, você já fica
+disponível para ser acessado **e** pode acessar outro computador.
 
-Um único programa faz as duas pontas:
-
-| Modo | O que faz |
-|---|---|
-| **Permitir que me acessem** (host) | Compartilha a tela deste computador e deixa outra pessoa controlar mouse e teclado. |
-| **Acessar outro** (viewer) | Conecta no computador que permitiu acesso e o controla. |
+Feito para rodar **sobre a VPN** do kit
+[`acessoexterno`](https://github.com/midiasclean/acessoexterno) (Tailscale /
+WireGuard) ou em **rede local**.
 
 ```
-   Quem controla (viewer)                        Quem é acessado (host)
- ┌────────────────────────┐                    ┌────────────────────────────┐
- │  vê a tela do host      │ ◄───── tela ────── │  captura a tela             │
- │  move mouse / digita    │ ────── mouse/tecla►│  injeta mouse/teclado       │
- │  (janela do programa)   │                    │  (janela "CONECTADO" visível)│
- └────────────────────────┘                    └────────────────────────────┘
-         conexão direta pelo IP da VPN (ex.: 100.x.x.x do Tailscale)
+ ┌───────────────────────────── Clean Remoto ─────────────────────────────┐
+ │  ESTE COMPUTADOR                     ACESSAR OUTRO COMPUTADOR            │
+ │  IP:    100.84.12.7                  IP:    [ 100.84.12.9 ]             │
+ │  Senha: 429175   [Gerar nova]        Senha: [ •••••• ]                  │
+ │  Status: Aguardando conexão...       [        CONECTAR        ]         │
+ └─────────────────────────────────────────────────────────────────────────┘
+          ▲ deixe aberto p/ ser acessado        ▲ conecta em outro PC
 ```
 
-## Funcionalidades (acesso integral)
+## Baixar
 
-- 🖥️ **Tela ao vivo** do computador acessado.
-- 🖱️ **Mouse completo**: mover, clique esquerdo/direito/meio, arrastar, rolagem.
-- ⌨️ **Teclado completo**: letras, acentos, símbolos, F1–F12, setas, e
-  **atalhos com Ctrl/Alt/Shift** (Ctrl+C, Alt+Tab, etc.).
-- 📋 **Área de transferência** (texto) sincronizada.
-- 🔒 **Acesso consentido e visível**: só conecta com a senha que o host mostra;
-  o host exibe uma janela "CONECTADO" com o botão **ENCERRAR SESSÃO** sempre à mão.
+- **Windows:** baixe o arquivo único **`CleanRemoto.exe`** na
+  [página de releases](https://github.com/midiasclean/cleanremoto/releases/latest)
+  (ou no site). É só dar dois cliques — **não precisa instalar Python**.
+- **Linux / macOS:** use o `cleanremoto.py` com Python (veja abaixo).
 
-> Pensado para **suporte e trabalho remoto autorizado** (acessar seu próprio PC
-> ou dar suporte a quem está do outro lado e vê a tela de consentimento).
-> Não instala serviço escondido, não roda invisível e não contorna antivírus.
+## Como usar
 
----
+1. Abra o **CleanRemoto.exe** nos dois computadores.
+2. No computador **que será acessado**: informe o **IP** e a **senha** que
+   aparecem em *“Este computador”*.
+3. No computador **que controla**: digite esse IP e senha em
+   *“Acessar outro computador”* e clique em **CONECTAR**.
 
-## Como usar (Windows, em 3 passos)
-
-Precisa do **Python 3.9+** instalado (<https://www.python.org/downloads/> —
-marque **"Add python.exe to PATH"** na instalação). Depois é só dois cliques:
-
-1. **No computador que será acessado**, dê dois cliques em
-   **`1-PERMITIR-ACESSO.bat`**. Abre uma janela mostrando o **IP** e a **senha**.
-2. **No computador que vai controlar**, dê dois cliques em
-   **`2-ACESSAR-OUTRO.bat`**, digite o **IP** e a **senha** do passo 1 e clique
-   em **CONECTAR**.
-3. Pronto: a tela do outro computador aparece e você já controla mouse e teclado.
-
-Prefere um atalho só? **`INICIAR.bat`** abre o menu com as duas opções.
+A tela do outro computador abre e você já controla mouse e teclado.
 
 ### Qual IP usar?
 
 - **Com a VPN do `acessoexterno` (recomendado):** use o IP do **Tailscale**
   (começa com `100.`) — funciona de qualquer lugar, sem abrir porta no roteador.
-  A janela do host já mostra esse IP primeiro.
-- **Na mesma rede local (casa/escritório):** use o IP local (ex.: `192.168.x.x`).
+- **Na mesma rede local:** use o IP local (ex.: `192.168.x.x`).
 
-A porta padrão é **7700**.
+Porta padrão: **7700**.
 
----
+## Funcionalidades (acesso integral)
 
-## Gerar um `.exe` (sem precisar Python na outra máquina)
+- 🖥️ **Tela ao vivo** (captura rápida, compactada em JPEG, só reenvia quando muda).
+- 🖱️ **Mouse completo**: mover, clicar (esq/dir/meio), arrastar, rolagem.
+- ⌨️ **Teclado completo**: letras, acentos, símbolos, F1–F12, setas e atalhos
+  com Ctrl/Alt/Shift (Ctrl+C, Alt+Tab…).
+- 📋 **Área de transferência** (texto) sincronizada.
+- 🔒 **Acesso consentido e visível**: só conecta com a senha mostrada; a senha
+  não trafega em texto puro (desafio/resposta HMAC-SHA256); o status e o botão
+  **ENCERRAR SESSÃO** ficam sempre visíveis.
 
-Dê dois cliques em **`GERAR-EXE.bat`**. Ele cria `dist\CleanRemoto.exe`, um
-arquivo único que você pode copiar para qualquer PC Windows e executar direto.
+> Para **suporte e acesso ao próprio computador**, com autorização. Não instala
+> serviço escondido, não roda invisível e não contorna antivírus.
 
----
-
-## Uso pela linha de comando (opcional)
+## Rodar pelo código (Linux / macOS / Windows com Python)
 
 ```bash
-# instalar dependencias (uma vez)
 pip install -r requirements.txt
-
-# permitir acesso a este computador (gera uma senha)
-python cleanremoto.py host --senha 123456 --porta 7700
-
-# acessar outro computador
-python cleanremoto.py viewer 100.101.102.103 --senha 123456 --porta 7700
-
-# sem argumentos: abre o menu grafico
-python cleanremoto.py
+python cleanremoto.py            # abre a janela única
+# opcionais:
+python cleanremoto.py host --senha 123456      # ja pronto para ser acessado
+python cleanremoto.py viewer 100.84.12.9 --senha 123456   # acessar outro direto
 ```
 
-Também funciona em **Linux** e **macOS** (Python + as dependências). No Linux o
-host precisa de sessão gráfica X11; no Wayland a injeção de teclado/mouse pode
-ser limitada.
+## De onde vem o `.exe`
 
----
+O `CleanRemoto.exe` é gerado automaticamente pelo **GitHub Actions**
+(`.github/workflows/build-exe.yml`) num runner Windows, com PyInstaller
+`--onefile` (um arquivo só), e publicado na Release **`app`** a cada mudança no
+programa. O site de download sempre aponta para a versão mais recente.
 
-## Segurança — leia antes de usar
+Para gerar manualmente num Windows com Python:
 
-- **Só acesse computadores que você tem autorização para acessar.** A pessoa do
-  outro lado vê a janela "CONECTADO" e pode encerrar a qualquer momento.
-- A senha **não trafega em texto puro**: o host manda um desafio aleatório e o
-  viewer responde com um HMAC-SHA256 da senha. Ainda assim, **use por dentro da
-  VPN** (Tailscale/WireGuard), que já criptografa todo o tráfego ponta a ponta.
-- **Não exponha a porta 7700 direto na internet / no roteador.** Deixe o acesso
-  só pela VPN. Em uma LAN confiável também é seguro.
-- Use uma **senha forte** no modo host (a gerada automaticamente serve; se
-  definir a sua, evite algo óbvio).
-- Para cortar o acesso de alguém, encerre a sessão no host e/ou remova o
-  dispositivo no painel do Tailscale.
-
-### Por que isto não é um "programa espião"
-
-Clean Remoto foi feito para acesso **consentido**: exige senha, mostra uma
-janela bem visível enquanto alguém está conectado, não se instala como serviço
-oculto, não se esconde de antivírus e não persiste sozinho. É a mesma categoria
-de ferramenta do TeamViewer/AnyDesk/VNC — para suporte e para acessar o próprio
-computador de longe.
-
----
+```bat
+pip install -r requirements.txt pyinstaller
+pyinstaller --noconfirm --onefile --windowed --name CleanRemoto ^
+  --collect-all pynput --collect-all mss cleanremoto.py
+:: resultado em dist\CleanRemoto.exe
+```
 
 ## Site de download (hospedagem na Vercel)
 
-Este repositório também é um **site estático** pronto para publicar na
-[Vercel](https://vercel.com) — uma página com botão de download do programa.
+Este repositório também é um **site estático** pronto para a
+[Vercel](https://vercel.com).
 
-**Como publicar (grátis, ~2 min):**
-
-1. Entre em <https://vercel.com> com sua conta do GitHub.
-2. **Add New → Project** e escolha o repositório `cleanremoto`.
-3. Pode deixar tudo como está (o `vercel.json` já cuida da configuração).
-4. Clique em **Deploy**. Pronto: a Vercel publica a página e os downloads.
+1. Entre na Vercel com o GitHub → **Add New → Project** → repositório `cleanremoto`.
+2. Pode deixar tudo como está (o `vercel.json` cuida da configuração) → **Deploy**.
 
 O `vercel.json` usa o builder `@vercel/static`, que **força o deploy 100%
-estático** e desliga a detecção automática da Vercel — assim o `cleanremoto.py`
-e o `requirements.txt` são tratados como arquivos para download, e não como um
-app para rodar no servidor. Sem isso, a Vercel tentaria executar o Python e o
-deploy falharia (`PYTHON_ENTRYPOINT_NOT_FOUND`). Arquivos do site:
-
-```
-index.html     a página (landing + download)
-favicon.svg    ícone
-vercel.json    cabeçalhos (download direto do .zip/.py) e URLs limpas
-CleanRemoto.zip  pacote baixado pelo botao (programa + atalhos .bat)
-```
-
-> Se mudar o `cleanremoto.py`, gere o zip de novo:
-> `python - <<'PY'\nimport zipfile;z=zipfile.ZipFile("CleanRemoto.zip","w",zipfile.ZIP_DEFLATED)\n[z.write(a,"CleanRemoto/"+a) for a in ["cleanremoto.py","requirements.txt","INICIAR.bat","1-PERMITIR-ACESSO.bat","2-ACESSAR-OUTRO.bat","GERAR-EXE.bat","README.md"]];z.close()\nPY`
-
----
+estático** e desliga a autodetecção da Vercel — assim o `cleanremoto.py` é
+tratado como arquivo para download, e não como app para rodar no servidor
+(sem isso o deploy falharia com `PYTHON_ENTRYPOINT_NOT_FOUND`).
 
 ## Arquivos
 
 ```
-index.html             site de download (para a Vercel)
-vercel.json            configuracao da Vercel (cabecalhos / URLs limpas)
-CleanRemoto.zip        pacote de download (programa + atalhos)
-INICIAR.bat            menu: permitir acesso OU acessar outro
-1-PERMITIR-ACESSO.bat  abre direto o modo host (compartilhar este PC)
-2-ACESSAR-OUTRO.bat    abre direto o modo viewer (acessar outro PC)
-GERAR-EXE.bat          cria dist\CleanRemoto.exe (nao precisa Python na outra maquina)
-cleanremoto.py         o programa (host + viewer num arquivo so)
-requirements.txt       dependencias (pillow, mss, pynput)
+cleanremoto.py                    o programa (janela única: host + viewer)
+requirements.txt                  dependencias (pillow, mss, pynput)
+.github/workflows/build-exe.yml   compila o CleanRemoto.exe (arquivo unico) e publica na Release
+index.html                        site de download (para a Vercel)
+vercel.json                       configuracao da Vercel (deploy estatico + cabecalhos)
+favicon.svg                       icone do site
 ```
 
-## Problemas comuns
+## Segurança
 
-**"Python nao encontrado"** — instale o Python e marque *Add to PATH*, ou use o
-`CleanRemoto.exe` gerado pelo `GERAR-EXE.bat`.
-
-**"Nao foi possivel conectar"** — confira se o host está com o
-`1-PERMITIR-ACESSO.bat` aberto, se o IP/senha/porta estão certos e se os dois
-computadores estão na mesma VPN (ou na mesma rede local). Em rede local, o
-Firewall do Windows pode pedir para liberar o Python na primeira vez — clique em
-**Permitir acesso**.
-
-**Tela um pouco lenta ou "mole"** — é normal em internet mais fraca; o programa
-já comprime a imagem e só reenvia quando a tela muda. Pela VPN e em rede local
-fica bem fluido.
-
-**Teclado com acento/símbolo errado** — o layout usado é o do computador que está
-sendo acessado (host). Configure o mesmo layout nos dois lados se precisar.
+- Use apenas em computadores que você tem **autorização** para acessar. A pessoa
+  do outro lado vê o status da sessão e pode encerrá-la a qualquer momento.
+- A senha não trafega em texto puro, mas **use por dentro de uma VPN**
+  (Tailscale/WireGuard), que criptografa todo o tráfego. **Não exponha a porta
+  7700 direto na internet.**
+- Use uma **senha forte** (a gerada automaticamente serve) e troque com
+  **Gerar nova** quando quiser.
