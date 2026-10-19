@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clean Remoto — acesso à área de trabalho remota</title>
+<meta name="description" content="Clean Remoto: programa gratuito de acesso à área de trabalho remota. Compartilhe seu computador ou acesse outro, com controle total de tela, mouse e teclado. Acesso com senha, seguro e consentido.">
+<meta name="theme-color" content="#0b1522">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:title" content="Clean Remoto — acesso à área de trabalho remota">
+<meta property="og:description" content="Compartilhe seu computador ou acesse outro, com controle total de tela, mouse e teclado. Seguro, com senha e consentido.">
+<meta property="og:type" content="website">
+<style>
+  :root{
+    --bg:#0b1522; --bg2:#0f1b2d; --card:#16263d; --line:#20334d; --txt:#eaf2ff; --muted:#9fc0e8; --dim:#6f8aae;
+    --blue:#5db0ff; --blue-d:#1e5f8f; --green:#1e6f3f; --green-l:#9fffa6;
+    --radius:16px; --maxw:1060px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--blue); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 16px}
+  .btn{
+    display:inline-flex; align-items:center; gap:10px; cursor:pointer;
+    border:none; border-radius:12px; padding:15px 26px; font-size:17px;
+    font-weight:700; color:#fff; transition:transform .08s ease, filter .15s ease;
+  }
+  .btn:hover{filter:brightness(1.08); text-decoration:none}
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{background:linear-gradient(135deg,#2ecc71,#1e6f3f)}
+  .btn-ghost{background:transparent; border:1px solid var(--line); color:var(--txt); font-weight:600}
+  .badge{
+    display:inline-block; font-size:13px; color:var(--green-l);
+    background:rgba(46,204,113,.12); border:1px solid rgba(46,204,113,.3);
+    padding:4px 12px; border-radius:999px; font-weight:600;
+  }
+
+  /* Topbar */
+  header.top{position:sticky; top:0; z-index:10; backdrop-filter:blur(8px);
+    background:rgba(11,21,34,.72); border-bottom:1px solid var(--line)}
+  .top .wrap{display:flex; align-items:center; justify-content:space-between; height:62px}
+  .brand{display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.3px}
+  .brand svg{width:28px; height:28px}
+  .brand b{color:var(--blue)}
+  .nav{display:flex; gap:22px; align-items:center}
+  .nav a{color:var(--muted); font-size:15px}
+  @media(max-width:620px){ .nav a:not(.nav-dl){display:none} }
+
+  /* Hero */
+  .hero{padding:70px 0 40px; text-align:center;
+    background:radial-gradient(1200px 500px at 50% -10%, rgba(93,176,255,.14), transparent 60%)}
+  .hero h1{font-size:clamp(32px,6vw,54px); line-height:1.1; margin:14px 0 10px; letter-spacing:-.5px}
+  .hero h1 span{background:linear-gradient(120deg,#5db0ff,#9fffa6); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent}
+  .hero p.sub{font-size:clamp(17px,2.4vw,21px); color:var(--muted); max-width:640px; margin:0 auto 26px}
+  .cta{display:flex; gap:14px; justify-content:center; flex-wrap:wrap; align-items:center}
+  .dlmeta{color:var(--dim); font-size:13px; margin-top:14px}
+
+  /* Mock window */
+  .mock{max-width:760px; margin:46px auto 0; background:var(--bg2);
+    border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+    box-shadow:0 30px 80px rgba(0,0,0,.45)}
+  .mock .bar{display:flex; align-items:center; gap:8px; padding:12px 16px; background:#0a1420; border-bottom:1px solid var(--line)}
+  .mock .bar i{width:11px; height:11px; border-radius:50%; display:inline-block}
+  .mock .bar .t{margin-left:10px; color:var(--dim); font-size:13px; font-family:Consolas,monospace}
+  .mock .body{display:grid; grid-template-columns:1fr 1fr; gap:0}
+  @media(max-width:560px){ .mock .body{grid-template-columns:1fr} }
+  .mock .pane{padding:22px 20px}
+  .mock .pane + .pane{border-left:1px solid var(--line)}
+  @media(max-width:560px){ .mock .pane + .pane{border-left:none; border-top:1px solid var(--line)} }
+  .mock h4{margin:0 0 6px; font-size:15px}
+  .mock .code{font-family:Consolas,monospace; font-size:13px; color:var(--muted); background:#0a1420; border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-top:12px}
+  .mock .code b{color:var(--green-l)}
+  .mock .ip{color:#fff}
+
+  /* Sections */
+  section{padding:58px 0}
+  section h2{font-size:clamp(24px,4vw,34px); text-align:center; margin:0 0 8px}
+  section .lead{text-align:center; color:var(--muted); max-width:640px; margin:0 auto 38px}
+
+  .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:18px}
+  @media(max-width:860px){ .grid{grid-template-columns:repeat(2,1fr)} }
+  @media(max-width:540px){ .grid{grid-template-columns:1fr} }
+  .feat{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:22px}
+  .feat .ic{font-size:26px; margin-bottom:10px}
+  .feat h3{margin:0 0 6px; font-size:17px}
+  .feat p{margin:0; color:var(--muted); font-size:15px}
+
+  .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:18px; counter-reset:s}
+  @media(max-width:760px){ .steps{grid-template-columns:1fr} }
+  .step{position:relative; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:26px 22px 22px}
+  .step::before{counter-increment:s; content:counter(s); position:absolute; top:-16px; left:22px;
+    width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#5db0ff,#1e5f8f);
+    color:#fff; font-weight:800; display:flex; align-items:center; justify-content:center; font-size:16px}
+  .step h3{margin:8px 0 6px; font-size:17px}
+  .step p{margin:0; color:var(--muted); font-size:15px}
+  .step code{background:#0a1420; border:1px solid var(--line); border-radius:6px; padding:2px 7px; font-size:13px; color:var(--green-l)}
+
+  .note{max-width:820px; margin:0 auto; background:var(--card); border:1px solid var(--line);
+    border-left:4px solid var(--green-l); border-radius:12px; padding:22px 24px}
+  .note h3{margin:0 0 10px; font-size:18px}
+  .note ul{margin:0; padding-left:20px; color:var(--muted)}
+  .note li{margin:7px 0}
+
+  .dlbox{max-width:720px; margin:0 auto; text-align:center; background:var(--bg2);
+    border:1px solid var(--line); border-radius:var(--radius); padding:38px 24px}
+  .dlbox .cta{margin-top:20px}
+
+  footer{border-top:1px solid var(--line); padding:34px 0; color:var(--dim); font-size:14px}
+  footer .wrap{display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; align-items:center}
+  .kbd{font-family:Consolas,monospace; background:#0a1420; border:1px solid var(--line); border-radius:6px; padding:2px 7px; font-size:13px; color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="2" y="3" width="20" height="13" rx="2" stroke="#5db0ff" stroke-width="1.8"/>
+        <path d="M8 20h8M12 16v4" stroke="#5db0ff" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M7 9.5l3 2.5-3 2.5" stroke="#9fffa6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 14.5h5" stroke="#9fffa6" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      Clean<b>Remoto</b>
+    </div>
+    <nav class="nav">
+      <a href="#recursos">Recursos</a>
+      <a href="#como-usar">Como usar</a>
+      <a href="#seguranca">Segurança</a>
+      <a class="nav-dl btn btn-ghost" href="#baixar" style="padding:8px 16px;font-size:14px">Baixar</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <span class="badge">Gratuito · Windows, Linux e macOS · Código aberto</span>
+      <h1>Acesse qualquer computador<br><span>como se estivesse nele</span></h1>
+      <p class="sub">O <b>Clean Remoto</b> compartilha a tela de um computador e deixa você controlá-lo
+        pela internet — tela, mouse e teclado completos. Um programa só faz as duas pontas.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="/CleanRemoto.zip" download>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Baixar o programa
+        </a>
+        <a class="btn btn-ghost" href="/cleanremoto.py" download>Baixar só o .py</a>
+      </div>
+      <div class="dlmeta">CleanRemoto.zip · ~14 KB · programa + atalhos de duplo-clique</div>
+
+      <div class="mock" aria-hidden="true">
+        <div class="bar">
+          <i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i>
+          <span class="t">Clean Remoto</span>
+        </div>
+        <div class="body">
+          <div class="pane">
+            <h4>🖥️ Permitir acesso</h4>
+            <p style="margin:0;color:var(--muted);font-size:14px">Este computador fica pronto para ser acessado.</p>
+            <div class="code">
+              Endereço (IP): <span class="ip">100.84.12.7</span><br>
+              Senha de acesso: <b>429175</b>
+            </div>
+          </div>
+          <div class="pane">
+            <h4>➡️ Acessar outro</h4>
+            <p style="margin:0;color:var(--muted);font-size:14px">Digite o IP e a senha e conecte.</p>
+            <div class="code">
+              IP: <span class="ip">100.84.12.7</span><br>
+              Senha: <b>••••••</b> &nbsp;→ <span style="color:var(--green-l)">CONECTAR</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="recursos">
+    <div class="wrap">
+      <h2>Controle total, com segurança</h2>
+      <p class="lead">Tudo que você precisa para dar suporte ou usar seu próprio PC de longe.</p>
+      <div class="grid">
+        <div class="feat"><div class="ic">🖥️</div><h3>Tela ao vivo</h3><p>Veja a tela do outro computador em tempo real. A imagem é compactada e só é reenviada quando algo muda.</p></div>
+        <div class="feat"><div class="ic">🖱️</div><h3>Mouse completo</h3><p>Mover, clicar (esquerdo, direito e meio), arrastar e rolar — como se o mouse fosse seu.</p></div>
+        <div class="feat"><div class="ic">⌨️</div><h3>Teclado completo</h3><p>Letras, acentos, símbolos, F1–F12, setas e atalhos com Ctrl, Alt e Shift (Ctrl+C, Alt+Tab…).</p></div>
+        <div class="feat"><div class="ic">📋</div><h3>Área de transferência</h3><p>O texto copiado é sincronizado entre os dois computadores automaticamente.</p></div>
+        <div class="feat"><div class="ic">🔒</div><h3>Acesso com senha</h3><p>Só conecta com a senha que o host mostra. A senha nunca trafega em texto puro (desafio/resposta HMAC).</p></div>
+        <div class="feat"><div class="ic">👁️</div><h3>Visível e consentido</h3><p>Quem é acessado vê uma janela “CONECTADO” com o botão <b>ENCERRAR SESSÃO</b> sempre à mão.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="como-usar" style="background:var(--bg2)">
+    <div class="wrap">
+      <h2>Comece em 3 passos</h2>
+      <p class="lead">No Windows é só dar dois cliques. Precisa do
+        <a href="https://www.python.org/downloads/" target="_blank" rel="noopener">Python</a>
+        instalado (marque <i>“Add to PATH”</i>).</p>
+      <div class="steps">
+        <div class="step">
+          <h3>Baixe e extraia</h3>
+          <p>Baixe o <code>CleanRemoto.zip</code>, clique com o botão direito e <b>Extrair tudo</b>.</p>
+        </div>
+        <div class="step">
+          <h3>No PC a ser acessado</h3>
+          <p>Dois cliques em <code>1-PERMITIR-ACESSO.bat</code>. Anote o <b>IP</b> e a <b>senha</b> que aparecem.</p>
+        </div>
+        <div class="step">
+          <h3>No PC que controla</h3>
+          <p>Dois cliques em <code>2-ACESSAR-OUTRO.bat</code>, digite o IP e a senha e clique em <b>CONECTAR</b>.</p>
+        </div>
+      </div>
+      <p class="lead" style="margin-top:34px">
+        Dica: para acessar <b>de qualquer lugar</b> com segurança, use junto com a VPN do
+        <a href="https://github.com/midiasclean/acessoexterno" target="_blank" rel="noopener">kit Acesso Externo</a>
+        (Tailscale) — sem abrir portas no roteador. Na mesma rede local, funciona direto pelo IP <span class="kbd">192.168.x.x</span>.
+      </p>
+    </div>
+  </section>
+
+  <section id="seguranca">
+    <div class="wrap">
+      <h2>Feito para acesso autorizado</h2>
+      <p class="lead">Clean Remoto é uma ferramenta de suporte e acesso ao próprio computador — como TeamViewer, AnyDesk ou VNC.</p>
+      <div class="note">
+        <h3>🔐 Como mantemos o acesso seguro e honesto</h3>
+        <ul>
+          <li>Só conecta com a <b>senha</b> que o computador acessado exibe na tela.</li>
+          <li>A senha <b>não trafega em texto puro</b>: usa desafio/resposta com HMAC-SHA256.</li>
+          <li>Enquanto alguém está conectado, aparece uma <b>janela bem visível</b> com o botão <b>ENCERRAR SESSÃO</b>.</li>
+          <li><b>Não</b> instala serviço escondido, <b>não</b> roda invisível e <b>não</b> contorna antivírus.</li>
+          <li>Recomendado usar <b>por dentro de uma VPN</b>; não exponha a porta direto na internet.</li>
+        </ul>
+        <p style="margin:14px 0 0;color:var(--dim);font-size:14px">
+          Use apenas em computadores que você tem autorização para acessar. A pessoa do outro lado
+          sempre vê que a sessão está ativa e pode encerrá-la a qualquer momento.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="baixar" style="background:var(--bg2)">
+    <div class="wrap">
+      <div class="dlbox">
+        <span class="badge">Pronto para usar</span>
+        <h2 style="margin:14px 0 6px">Baixe o Clean Remoto</h2>
+        <p class="lead" style="margin-bottom:0">Um programa só — compartilha este computador ou acessa outro.</p>
+        <div class="cta">
+          <a class="btn btn-primary" href="/CleanRemoto.zip" download>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Baixar CleanRemoto.zip
+          </a>
+          <a class="btn btn-ghost" href="/cleanremoto.py" download>cleanremoto.py</a>
+        </div>
+        <div class="dlmeta">
+          Quer um <b>.exe</b> que roda sem Python? Baixe o zip e dê dois cliques em
+          <span class="kbd">GERAR-EXE.bat</span>.
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="brand" style="font-size:16px">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="2" y="3" width="20" height="13" rx="2" stroke="#5db0ff" stroke-width="1.8"/>
+        <path d="M8 20h8M12 16v4" stroke="#5db0ff" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M7 9.5l3 2.5-3 2.5" stroke="#9fffa6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 14.5h5" stroke="#9fffa6" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      Clean<b style="color:var(--blue)">Remoto</b>
+    </div>
+    <div>Acesso à área de trabalho remota · consentido e visível</div>
+    <div><a href="https://github.com/midiasclean/cleanremoto" target="_blank" rel="noopener">Código no GitHub</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

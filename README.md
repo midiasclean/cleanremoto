@@ -116,9 +116,39 @@ computador de longe.
 
 ---
 
+## Site de download (hospedagem na Vercel)
+
+Este repositório também é um **site estático** pronto para publicar na
+[Vercel](https://vercel.com) — uma página com botão de download do programa.
+
+**Como publicar (grátis, ~2 min):**
+
+1. Entre em <https://vercel.com> com sua conta do GitHub.
+2. **Add New → Project** e escolha o repositório `cleanremoto`.
+3. Em *Framework Preset* deixe **Other** e **não** preencha Build/Output.
+4. Clique em **Deploy**. Pronto: a Vercel publica a página e os downloads.
+
+O site é 100% estático (sem build), então o deploy é instantâneo e sem
+configuração. Arquivos do site:
+
+```
+index.html     a página (landing + download)
+favicon.svg    ícone
+vercel.json    cabeçalhos (download direto do .zip/.py) e URLs limpas
+CleanRemoto.zip  pacote baixado pelo botao (programa + atalhos .bat)
+```
+
+> Se mudar o `cleanremoto.py`, gere o zip de novo:
+> `python - <<'PY'\nimport zipfile;z=zipfile.ZipFile("CleanRemoto.zip","w",zipfile.ZIP_DEFLATED)\n[z.write(a,"CleanRemoto/"+a) for a in ["cleanremoto.py","requirements.txt","INICIAR.bat","1-PERMITIR-ACESSO.bat","2-ACESSAR-OUTRO.bat","GERAR-EXE.bat","README.md"]];z.close()\nPY`
+
+---
+
 ## Arquivos
 
 ```
+index.html             site de download (para a Vercel)
+vercel.json            configuracao da Vercel (cabecalhos / URLs limpas)
+CleanRemoto.zip        pacote de download (programa + atalhos)
 INICIAR.bat            menu: permitir acesso OU acessar outro
 1-PERMITIR-ACESSO.bat  abre direto o modo host (compartilhar este PC)
 2-ACESSAR-OUTRO.bat    abre direto o modo viewer (acessar outro PC)
