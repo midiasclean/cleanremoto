@@ -125,11 +125,14 @@ Este repositório também é um **site estático** pronto para publicar na
 
 1. Entre em <https://vercel.com> com sua conta do GitHub.
 2. **Add New → Project** e escolha o repositório `cleanremoto`.
-3. Em *Framework Preset* deixe **Other** e **não** preencha Build/Output.
+3. Pode deixar tudo como está (o `vercel.json` já cuida da configuração).
 4. Clique em **Deploy**. Pronto: a Vercel publica a página e os downloads.
 
-O site é 100% estático (sem build), então o deploy é instantâneo e sem
-configuração. Arquivos do site:
+O `vercel.json` usa o builder `@vercel/static`, que **força o deploy 100%
+estático** e desliga a detecção automática da Vercel — assim o `cleanremoto.py`
+e o `requirements.txt` são tratados como arquivos para download, e não como um
+app para rodar no servidor. Sem isso, a Vercel tentaria executar o Python e o
+deploy falharia (`PYTHON_ENTRYPOINT_NOT_FOUND`). Arquivos do site:
 
 ```
 index.html     a página (landing + download)

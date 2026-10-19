@@ -1,30 +1,36 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "cleanUrls": true,
-  "trailingSlash": false,
-  "headers": [
+  "version": 2,
+  "builds": [
+    { "src": "**", "use": "@vercel/static" }
+  ],
+  "routes": [
     {
-      "source": "/CleanRemoto.zip",
-      "headers": [
-        { "key": "Content-Type", "value": "application/zip" },
-        { "key": "Content-Disposition", "value": "attachment; filename=\"CleanRemoto.zip\"" },
-        { "key": "Cache-Control", "value": "public, max-age=3600" }
-      ]
+      "src": "/CleanRemoto.zip",
+      "headers": {
+        "Content-Type": "application/zip",
+        "Content-Disposition": "attachment; filename=\"CleanRemoto.zip\"",
+        "Cache-Control": "public, max-age=3600"
+      },
+      "continue": true
     },
     {
-      "source": "/cleanremoto.py",
-      "headers": [
-        { "key": "Content-Type", "value": "text/x-python; charset=utf-8" },
-        { "key": "Content-Disposition", "value": "attachment; filename=\"cleanremoto.py\"" }
-      ]
+      "src": "/cleanremoto.py",
+      "headers": {
+        "Content-Type": "text/x-python; charset=utf-8",
+        "Content-Disposition": "attachment; filename=\"cleanremoto.py\""
+      },
+      "continue": true
     },
     {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "X-Frame-Options", "value": "SAMEORIGIN" }
-      ]
-    }
+      "src": "/(.*)",
+      "headers": {
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "X-Frame-Options": "SAMEORIGIN"
+      },
+      "continue": true
+    },
+    { "handle": "filesystem" },
+    { "src": "/", "dest": "/index.html" }
   ]
 }
