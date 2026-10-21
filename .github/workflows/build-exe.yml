@@ -68,5 +68,5 @@ jobs:
           if git diff --cached --quiet; then
             echo "Sem mudancas no .exe"; exit 0
           fi
-          git commit -m "Atualiza CleanRemoto.exe para download no site [skip ci]"
+          git commit -m "Atualiza CleanRemoto.exe para download no site"
           git push origin "HEAD:${GITHUB_REF_NAME}"
