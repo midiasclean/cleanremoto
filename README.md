@@ -32,6 +32,9 @@ WireGuard) ou em **rede local**.
    aparecem em *“Este computador”*.
 3. No computador **que controla**: digite esse IP e senha em
    *“Acessar outro computador”* e clique em **CONECTAR**.
+4. De volta no computador **que será acessado**: clique em **PERMITIR** no
+   aviso que aparece (ou deixe *“Permitir automaticamente”* ligado para dispensar
+   esse passo).
 
 A tela do outro computador abre e você já controla mouse e teclado.
 
@@ -50,9 +53,13 @@ Porta padrão: **7700**.
 - ⌨️ **Teclado completo**: letras, acentos, símbolos, F1–F12, setas e atalhos
   com Ctrl/Alt/Shift (Ctrl+C, Alt+Tab…).
 - 📋 **Área de transferência** (texto) sincronizada.
-- 🔒 **Acesso consentido e visível**: só conecta com a senha mostrada; a senha
-  não trafega em texto puro (desafio/resposta HMAC-SHA256); o status e o botão
-  **ENCERRAR SESSÃO** ficam sempre visíveis.
+- ✅ **Autorização ao vivo**: além da senha, ao conectar aparece no computador
+  acessado o aviso *“Fulano quer acessar — Permitir / Recusar”*. Sem autorizar,
+  a sessão não começa (recusa sozinho em 60s). Para acessar o **próprio PC**
+  sem ninguém presente, marque *“Permitir automaticamente, só com a senha”*.
+- 🔒 **Acesso consentido e visível**: a senha não trafega em texto puro
+  (desafio/resposta HMAC-SHA256); o status e o botão **ENCERRAR SESSÃO** ficam
+  sempre visíveis.
 
 > Para **suporte e acesso ao próprio computador**, com autorização. Não instala
 > serviço escondido, não roda invisível e não contorna antivírus.

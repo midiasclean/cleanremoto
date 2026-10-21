@@ -75,6 +75,7 @@ MSG_FRAME = 5      # host -> viewer : bytes JPEG
 MSG_INPUT = 6      # viewer -> host : {evento de mouse/teclado}
 MSG_CLIP = 7       # ambos          : texto da area de transferencia (utf-8)
 MSG_PING = 8       # ambos          : mantem a conexao viva
+MSG_WAIT = 9       # host -> viewer : {texto} aguardando autorizacao ao vivo
 
 _HDR = struct.Struct("!BI")
 
@@ -224,7 +225,7 @@ class ServidorHost:
 
     def __init__(self, senha, porta=PORT_PADRAO, fps=12, qualidade=55,
                  ao_conectar=None, ao_desconectar=None, ao_log=None,
-                 ao_clipboard=None):
+                 ao_clipboard=None, ao_pedir_permissao=None, auto_aceitar=False):
         self.senha = senha
         self.porta = porta
         self.intervalo = 1.0 / max(1, fps)
@@ -233,6 +234,10 @@ class ServidorHost:
         self.ao_desconectar = ao_desconectar or (lambda: None)
         self.ao_log = ao_log or (lambda m: None)
         self.ao_clipboard = ao_clipboard or (lambda texto: None)
+        # Pergunta ao vivo "Permitir / Recusar"; deve BLOQUEAR e devolver bool.
+        self.ao_pedir_permissao = ao_pedir_permissao
+        # Quando True, aceita direto com a senha (acesso sem ninguem presente).
+        self.auto_aceitar = auto_aceitar
         self._parar = threading.Event()
         self._cliente = None
         self._srv = None
@@ -306,6 +311,23 @@ class ServidorHost:
             time.sleep(1)
             return
         nome = info.get("nome") or addr[0]
+
+        # 1.5) autorizacao AO VIVO: a senha confere, agora quem recebe decide.
+        #      (pulada quando "permitir automaticamente" esta ligado.)
+        if not self.auto_aceitar and self.ao_pedir_permissao is not None:
+            enviar_msg(cli, MSG_WAIT,
+                       {"texto": "Aguardando o outro computador autorizar o acesso..."})
+            self.ao_log("%s (%s) pediu acesso. Aguardando sua autorizacao..."
+                        % (nome, addr[0]))
+            try:
+                permitido = bool(self.ao_pedir_permissao(nome, addr[0]))
+            except Exception:
+                permitido = False
+            if not permitido:
+                enviar_msg(cli, MSG_AUTH_FAIL,
+                           {"motivo": "acesso recusado no outro computador"})
+                self.ao_log("Acesso de %s recusado." % nome)
+                return
 
         cap = CapturadorTela()
         larg, alt = cap.info()
@@ -381,6 +403,7 @@ class JanelaViewer:
         self._img_tk = None
         self._mods = set()  # modificadores pressionados (ctrl/alt)
         self._standalone = master is None
+        self._conectado = False
 
         self.win = tk.Tk() if master is None else tk.Toplevel(master)
         self.win.title("Clean Remoto - conectando a %s..." % host)
@@ -392,39 +415,83 @@ class JanelaViewer:
         self._item = self.canvas.create_image(0, 0, anchor="nw")
         self._area = (0, 0, 1, 1)  # x0,y0,larg,alt da imagem desenhada
 
+        # aviso central enquanto conecta / aguarda autorizacao do outro lado
+        self.lbl_status = tk.Label(self.win, text="Conectando a %s..." % host,
+                                   bg="#111", fg="#cfe3ff", font=("Segoe UI", 14))
+        self.lbl_status.place(relx=0.5, rely=0.5, anchor="center")
+
         self._ligar_eventos()
         self.win.protocol("WM_DELETE_WINDOW", self.fechar)
 
-    # -- conexao -----------------------------------------------------------
-    def conectar(self):
+    # -- conexao (em segundo plano, para nao travar a janela) --------------
+    def _set_status(self, txt):
+        def ap():
+            if self.lbl_status is not None:
+                if txt:
+                    self.lbl_status.config(text=txt)
+                else:
+                    try:
+                        self.lbl_status.destroy()
+                    except Exception:
+                        pass
+                    self.lbl_status = None
         try:
-            self.sock = socket.create_connection((self.host, self.porta), timeout=10)
-            self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            tipo, dados = receber_msg(self.sock)
+            self.win.after(0, ap)
+        except Exception:
+            pass
+
+    def _handshake(self):
+        try:
+            sock = socket.create_connection((self.host, self.porta), timeout=10)
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            tipo, dados = receber_msg(sock)
             if tipo != MSG_HELLO:
                 raise ConnectionError("resposta inesperada do host")
             nonce = json.loads(dados.decode("utf-8"))["nonce"]
-            enviar_msg(self.sock, MSG_AUTH,
+            enviar_msg(sock, MSG_AUTH,
                        {"resposta": resposta_hmac(self.senha, nonce), "nome": self.nome})
-            tipo, dados = receber_msg(self.sock)
-            if tipo == MSG_AUTH_FAIL:
-                motivo = json.loads(dados.decode("utf-8")).get("motivo", "recusado")
-                raise ConnectionError("Acesso negado: %s" % motivo)
-            if tipo != MSG_AUTH_OK:
+            # pode receber MSG_WAIT (aguardando autorizacao) antes do resultado
+            while True:
+                tipo, dados = receber_msg(sock)
+                if tipo == MSG_WAIT:
+                    try:
+                        txt = json.loads(dados.decode("utf-8")).get("texto")
+                    except Exception:
+                        txt = None
+                    self._set_status(txt or "Aguardando autorizacao do outro computador...")
+                    continue
+                if tipo == MSG_AUTH_FAIL:
+                    motivo = json.loads(dados.decode("utf-8")).get("motivo", "recusado")
+                    raise ConnectionError(motivo)
+                if tipo == MSG_AUTH_OK:
+                    info = json.loads(dados.decode("utf-8"))
+                    self.larg_remota = info["largura"]
+                    self.alt_remota = info["altura"]
+                    break
                 raise ConnectionError("handshake falhou")
-            info = json.loads(dados.decode("utf-8"))
-            self.larg_remota = info["largura"]
-            self.alt_remota = info["altura"]
+            self.sock = sock
+            self.win.after(0, self._iniciar_sessao)
         except Exception as e:
-            messagebox.showerror("Clean Remoto", "Nao foi possivel conectar:\n%s" % e)
-            self.fechar()
-            return False
+            def erro():
+                try:
+                    messagebox.showerror("Clean Remoto",
+                                         "Nao foi possivel conectar:\n%s" % e)
+                except Exception:
+                    pass
+                self.fechar()
+            try:
+                self.win.after(0, erro)
+            except Exception:
+                pass
+
+    def _iniciar_sessao(self):
+        self._conectado = True
+        self._set_status("")
         self.win.title("Clean Remoto - %s (%dx%d)" %
                        (self.host, self.larg_remota, self.alt_remota))
         threading.Thread(target=self._loop_receber, daemon=True).start()
         self.win.after(30, self._atualizar_tela)
         self.canvas.focus_set()
-        return True
 
     def _loop_receber(self):
         try:
@@ -485,7 +552,7 @@ class JanelaViewer:
         return int(rx), int(ry)
 
     def _enviar(self, ev):
-        if self._parar.is_set() or not self.sock:
+        if not self._conectado or self._parar.is_set() or not self.sock:
             return
         try:
             enviar_msg(self.sock, MSG_INPUT, ev)
@@ -582,13 +649,13 @@ class JanelaViewer:
             pass
 
     def abrir(self):
-        """Conecta usando o mainloop ja existente (janela secundaria)."""
-        self.conectar()
+        """Conecta em segundo plano usando o mainloop ja existente."""
+        threading.Thread(target=self._handshake, daemon=True).start()
 
     def rodar(self):
         """Conecta e roda o proprio mainloop (uso por linha de comando)."""
-        if self.conectar():
-            self.win.mainloop()
+        self.abrir()
+        self.win.mainloop()
 
 
 # ===========================================================================
@@ -649,6 +716,15 @@ class JanelaPrincipal:
         tk.Button(linha, text="Aplicar", command=self._iniciar_servidor,
                   bg="#1e6f3f", fg="white", relief="flat",
                   font=("Segoe UI", 9, "bold")).grid(row=0, column=5, padx=3)
+
+        self.var_auto = tk.BooleanVar(value=False)
+        tk.Checkbutton(
+            card1, variable=self.var_auto, command=self._toggle_auto,
+            text="Permitir automaticamente, so com a senha (acesso sem ninguem presente)",
+            bg=CARD, fg=MUTED, selectcolor="#0a1420", activebackground=CARD,
+            activeforeground=VERDE, font=("Segoe UI", 9),
+            anchor="w", justify="left", wraplength=440).pack(
+                anchor="w", padx=12, pady=(8, 0))
 
         self.lbl_status = tk.Label(card1, text="Iniciando...", bg=CARD,
                                    fg="#ffd27f", font=("Segoe UI", 11, "bold"))
@@ -717,10 +793,93 @@ class JanelaPrincipal:
         self.servidor = ServidorHost(
             senha, porta,
             ao_conectar=self._ao_conectar, ao_desconectar=self._ao_desconectar,
-            ao_log=self._log, ao_clipboard=self._set_clip)
+            ao_log=self._log, ao_clipboard=self._set_clip,
+            ao_pedir_permissao=self._pedir_permissao,
+            auto_aceitar=self.var_auto.get())
         self.servidor.iniciar()
         self.lbl_status.config(text="Aguardando conexao...", fg="#ffd27f")
         self.btn_encerrar.config(state="disabled")
+
+    def _toggle_auto(self):
+        if self.servidor:
+            self.servidor.auto_aceitar = self.var_auto.get()
+        self._log("Permitir automaticamente: %s"
+                  % ("LIGADO" if self.var_auto.get() else "desligado"))
+
+    # -- autorizacao ao vivo (Permitir / Recusar) --------------------------
+    def _pedir_permissao(self, nome, ip):
+        """Chamado pela thread do servidor. Bloqueia ate a pessoa decidir."""
+        ev = threading.Event()
+        res = {"ok": False}
+        try:
+            self.root.after(0, lambda: self._dialogo_permissao(nome, ip, res, ev))
+        except Exception:
+            return False
+        ev.wait(timeout=75)  # rede de seguranca; o dialogo decide em 60s
+        return res["ok"]
+
+    def _dialogo_permissao(self, nome, ip, res, ev, segundos=60):
+        top = tk.Toplevel(self.root)
+        top.title("Pedido de acesso")
+        top.configure(bg=CARD)
+        top.attributes("-topmost", True)
+        top.resizable(False, False)
+        try:
+            top.grab_set()
+        except Exception:
+            pass
+        tk.Label(top, text="Pedido de acesso", bg=CARD, fg=AZUL,
+                 font=("Segoe UI", 14, "bold")).pack(padx=24, pady=(18, 4))
+        tk.Label(top, text="%s (%s)" % (nome, ip), bg=CARD, fg="#ffffff",
+                 font=("Segoe UI", 12, "bold")).pack(padx=24)
+        tk.Label(top, text="quer acessar e controlar este computador.",
+                 bg=CARD, fg=MUTED, font=("Segoe UI", 10)).pack(padx=24, pady=(0, 10))
+        lbl_count = tk.Label(top, text="", bg=CARD, fg="#ffd27f",
+                             font=("Segoe UI", 9))
+        lbl_count.pack(pady=(0, 8))
+
+        estado = {"left": segundos, "fim": False}
+
+        def decidir(ok):
+            if estado["fim"]:
+                return
+            estado["fim"] = True
+            res["ok"] = ok
+            ev.set()
+            try:
+                top.grab_release()
+            except Exception:
+                pass
+            try:
+                top.destroy()
+            except Exception:
+                pass
+
+        linha = tk.Frame(top, bg=CARD)
+        linha.pack(padx=24, pady=(0, 18))
+        tk.Button(linha, text="RECUSAR", command=lambda: decidir(False),
+                  bg="#c0392b", fg="white", relief="flat", padx=16, pady=6,
+                  font=("Segoe UI", 11, "bold")).grid(row=0, column=0, padx=8)
+        tk.Button(linha, text="PERMITIR", command=lambda: decidir(True),
+                  bg="#1e6f3f", fg="white", relief="flat", padx=16, pady=6,
+                  font=("Segoe UI", 11, "bold")).grid(row=0, column=1, padx=8)
+        top.protocol("WM_DELETE_WINDOW", lambda: decidir(False))
+
+        def tic():
+            if estado["fim"]:
+                return
+            estado["left"] -= 1
+            if estado["left"] <= 0:
+                decidir(False)
+                return
+            lbl_count.config(text="Recusado automaticamente em %ds" % estado["left"])
+            top.after(1000, tic)
+        lbl_count.config(text="Recusado automaticamente em %ds" % segundos)
+        top.after(1000, tic)
+        try:
+            top.bell()
+        except Exception:
+            pass
 
     def _set_clip(self, texto):
         def ap():
