@@ -33,7 +33,8 @@ jobs:
       - name: Gerar o executavel unico
         run: >
           pyinstaller --noconfirm --onefile --windowed --name CleanRemoto
-          --collect-all pynput --collect-all mss cleanremoto.py
+          --collect-all pynput --collect-all mss --collect-all websockets
+          cleanremoto.py
 
       - name: Publicar como artefato do build
         uses: actions/upload-artifact@v4

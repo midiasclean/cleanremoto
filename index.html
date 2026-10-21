@@ -143,8 +143,8 @@
     <div class="wrap">
       <span class="badge">Gratuito · Windows, Linux e macOS · Código aberto</span>
       <h1>Acesse qualquer computador<br><span>como se estivesse nele</span></h1>
-      <p class="sub">O <b>Clean Remoto</b> é um único programa — como o AnyDesk. Abra para
-        ser acessado e, na mesma janela, acesse outro computador. Tela, mouse e teclado completos.</p>
+      <p class="sub">Um único programa, como o AnyDesk: acesse outro computador <b>de qualquer
+        lugar pela internet, só com um código</b>. O outro lado só clica em <b>Permitir</b>.</p>
       <div class="cta">
         <a class="btn btn-primary" href="https://github.com/midiasclean/cleanremoto/releases/latest/download/CleanRemoto.exe">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -164,18 +164,18 @@
         <div class="body">
           <div class="pane">
             <h4>🖥️ Este computador</h4>
-            <p style="margin:0;color:var(--muted);font-size:14px">Deixe aberto para que possam te acessar.</p>
+            <p style="margin:0;color:var(--muted);font-size:14px">Passe o seu código para quem vai te acessar.</p>
             <div class="code">
-              Endereço (IP): <span class="ip">100.84.12.7</span><br>
-              Senha: <b>429175</b>
+              Seu código:<br>
+              <b style="font-size:18px;letter-spacing:1px">284 459 657</b>
             </div>
           </div>
           <div class="pane">
             <h4>➡️ Acessar outro</h4>
-            <p style="margin:0;color:var(--muted);font-size:14px">Na mesma janela, conecte em outro PC.</p>
+            <p style="margin:0;color:var(--muted);font-size:14px">Digite o código e conecte — de qualquer rede.</p>
             <div class="code">
-              IP: <span class="ip">100.84.12.7</span><br>
-              Senha: <b>••••••</b> &nbsp;→ <span style="color:var(--green-l)">CONECTAR</span>
+              Código: <span class="ip">123 456 789</span><br>
+              → <span style="color:var(--green-l)">CONECTAR</span>
             </div>
           </div>
         </div>
@@ -192,7 +192,7 @@
         <div class="feat"><div class="ic">🖱️</div><h3>Mouse completo</h3><p>Mover, clicar (esquerdo, direito e meio), arrastar e rolar — como se o mouse fosse seu.</p></div>
         <div class="feat"><div class="ic">⌨️</div><h3>Teclado completo</h3><p>Letras, acentos, símbolos, F1–F12, setas e atalhos com Ctrl, Alt e Shift (Ctrl+C, Alt+Tab…).</p></div>
         <div class="feat"><div class="ic">📋</div><h3>Área de transferência</h3><p>O texto copiado é sincronizado entre os dois computadores automaticamente.</p></div>
-        <div class="feat"><div class="ic">🔒</div><h3>Acesso com senha</h3><p>Só conecta com a senha que o host mostra. A senha nunca trafega em texto puro (desafio/resposta HMAC).</p></div>
+        <div class="feat"><div class="ic">🌐</div><h3>De qualquer lugar</h3><p>Conecta pela internet usando só um <b>código</b> (via um servidor-ponte seu), não apenas na rede local. Sem abrir portas no roteador.</p></div>
         <div class="feat"><div class="ic">✅</div><h3>Autorização ao vivo</h3><p>Ao conectar, quem recebe vê “Fulano quer acessar — <b>Permitir</b> / <b>Recusar</b>”. Sem autorizar, a sessão não começa. Há modo automático para acessar o próprio PC.</p></div>
       </div>
     </div>
@@ -201,20 +201,22 @@
   <section id="como-usar" style="background:var(--bg2)">
     <div class="wrap">
       <h2>Comece em 3 passos</h2>
-      <p class="lead">Um arquivo só, igual ao AnyDesk: baixe o <code>CleanRemoto.exe</code>
-        nos dois computadores e dê dois cliques. Não precisa instalar Python nem nada.</p>
+      <p class="lead">Baixe o <code>CleanRemoto.exe</code> nos dois computadores. Para acessar
+        <b>pela internet</b>, informe uma vez o endereço do servidor (ponte) no campo
+        “Servidor (ponte)” — veja como montar a ponte no
+        <a href="https://github.com/midiasclean/cleanremoto" target="_blank" rel="noopener">repositório (pasta relay)</a>.</p>
       <div class="steps">
         <div class="step">
-          <h3>Baixe nos dois PCs</h3>
-          <p>Baixe o <code>CleanRemoto.exe</code> no computador que vai acessar e no que será acessado.</p>
+          <h3>Abra nos dois PCs</h3>
+          <p>Cada computador mostra o <b>seu código</b> (ex.: <code>284 459 657</code>) e fica “Online”.</p>
         </div>
         <div class="step">
-          <h3>No PC a ser acessado</h3>
-          <p>Abra o programa, passe o <b>IP</b> e a <b>senha</b> de “Este computador” e clique em <b>Permitir</b> quando alguém conectar.</p>
+          <h3>Digite o código</h3>
+          <p>No computador que controla, digite o <b>código do outro</b> em “Acessar outro” e clique em <b>CONECTAR</b>.</p>
         </div>
         <div class="step">
-          <h3>No PC que controla</h3>
-          <p>Abra o programa, digite o IP e a senha em <b>“Acessar outro”</b> e clique em <b>CONECTAR</b>.</p>
+          <h3>O outro aceita</h3>
+          <p>No computador acessado aparece <b>“Permitir / Recusar”</b>. Ao clicar em Permitir, a sessão começa.</p>
         </div>
       </div>
       <p class="lead" style="margin-top:34px">
@@ -232,9 +234,9 @@
       <div class="note">
         <h3>🔐 Como mantemos o acesso seguro e honesto</h3>
         <ul>
-          <li>Só conecta com a <b>senha</b> que o computador acessado exibe na tela.</li>
-          <li>A senha <b>não trafega em texto puro</b>: usa desafio/resposta com HMAC-SHA256.</li>
-          <li><b>Autorização ao vivo</b>: mesmo com a senha certa, quem recebe precisa clicar <b>Permitir</b> (ou ligar o modo automático para acessar o próprio PC).</li>
+          <li><b>Autorização ao vivo</b>: para entrar, quem recebe precisa clicar <b>Permitir</b> (recusa sozinho em 60s).</li>
+          <li>Para acesso <b>sem ninguém presente</b>, há a opção “permitir automaticamente” — que exige uma <b>senha</b> (nunca trafega em texto puro: HMAC-SHA256).</li>
+          <li>A <b>ponte só repassa bytes</b>: não vê a sua tela, o teclado nem a senha (tudo é tratado ponta a ponta entre os dois computadores).</li>
           <li>Enquanto alguém está conectado, aparece o <b>status</b> com o botão <b>ENCERRAR SESSÃO</b> sempre à mão.</li>
           <li><b>Não</b> instala serviço escondido, <b>não</b> roda invisível e <b>não</b> contorna antivírus.</li>
           <li>Recomendado usar <b>por dentro de uma VPN</b>; não exponha a porta direto na internet.</li>

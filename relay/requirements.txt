@@ -1,0 +1,2 @@
+# Ponte (relay) do Clean Remoto
+websockets>=12.0

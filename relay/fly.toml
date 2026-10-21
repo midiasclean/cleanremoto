@@ -1,0 +1,18 @@
+# Configuracao da ponte do Clean Remoto no Fly.io.
+# Troque "app" por um nome unico seu (ex.: cleanremoto-ponte-suaempresa).
+app = "cleanremoto-ponte"
+primary_region = "gru"          # gru = Sao Paulo (bom para o Brasil)
+
+[build]
+
+[http_service]
+  internal_port = 8080          # igual ao ENV PORT do Dockerfile
+  force_https = true
+  auto_stop_machines = false    # a ponte precisa ficar sempre ligada
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256

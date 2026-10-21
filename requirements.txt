@@ -1,5 +1,6 @@
-# Clean Remoto - dependencias
+# Clean Remoto - dependencias do programa (cliente)
 # Instale com:  pip install -r requirements.txt
 pillow>=10.0        # captura e codificacao de imagem da tela
 mss>=9.0            # captura de tela rapida (com fallback para pillow)
 pynput>=1.7         # injecao de mouse e teclado no lado host
+websockets>=12.0    # conexao com a ponte (relay) para acesso pela internet
