@@ -30,6 +30,28 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt pyinstaller
 
+      # Embute o endereco da ponte no .exe, se a variavel do repositorio
+      # CLEANREMOTO_RELAY estiver definida (Settings -> Secrets and variables
+      # -> Actions -> Variables). Assim o usuario final NAO precisa configurar
+      # nada: abre, ve o codigo e ja conecta.
+      - name: Embutir endereco da ponte (se configurado)
+        shell: bash
+        env:
+          RELAY_URL: ${{ vars.CLEANREMOTO_RELAY }}
+        run: |
+          if [ -n "$RELAY_URL" ]; then
+            python - <<'PY'
+import os, re
+url = os.environ["RELAY_URL"].strip()
+s = open("cleanremoto.py", encoding="utf-8").read()
+s2 = re.sub(r'^RELAY_PADRAO = ""', 'RELAY_PADRAO = %r' % url, s, count=1, flags=re.M)
+open("cleanremoto.py", "w", encoding="utf-8").write(s2)
+print("Ponte embutida no .exe:", url)
+PY
+          else
+            echo "Variavel CLEANREMOTO_RELAY nao definida; .exe sem ponte embutida."
+          fi
+
       - name: Gerar o executavel unico
         run: >
           pyinstaller --noconfirm --onefile --windowed --name CleanRemoto
