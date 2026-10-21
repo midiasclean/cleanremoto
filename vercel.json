@@ -5,6 +5,15 @@
   ],
   "routes": [
     {
+      "src": "/CleanRemoto.exe",
+      "headers": {
+        "Content-Type": "application/vnd.microsoft.portable-executable",
+        "Content-Disposition": "attachment; filename=\"CleanRemoto.exe\"",
+        "Cache-Control": "public, max-age=300"
+      },
+      "continue": true
+    },
+    {
       "src": "/cleanremoto.py",
       "headers": {
         "Content-Type": "text/x-python; charset=utf-8",

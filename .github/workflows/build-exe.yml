@@ -54,3 +54,19 @@ jobs:
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Comita o .exe no repositorio para a Vercel servir publicamente em
+      # /CleanRemoto.exe (funciona mesmo com o repositorio privado, pois a
+      # Vercel serve os arquivos do deploy de forma publica).
+      - name: Publicar o .exe no site (commit para a Vercel servir)
+        shell: bash
+        run: |
+          cp dist/CleanRemoto.exe CleanRemoto.exe
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f CleanRemoto.exe
+          if git diff --cached --quiet; then
+            echo "Sem mudancas no .exe"; exit 0
+          fi
+          git commit -m "Atualiza CleanRemoto.exe para download no site [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
